@@ -142,6 +142,16 @@ async function initServer() {
 }
 
 async function refreshBackend() {
+    console.log("Now using server:", SERVER);
+
+    localStorage.removeItem("beans_cache");
+    localStorage.removeItem("products_cache");
+    localStorage.removeItem("orders_cache");
+
+    beansCache = [];
+    productsCache = [];
+    ordersCache = [];
+
     await loadBeans();
     await loadProducts();
     await loadOrders();
@@ -425,7 +435,6 @@ async function loadOrders(forceRefresh = false, resetCache = false) {
     try {
         const res = await apiFetch("/orders");
         const orders = res.data;
-        console.log(orders);
 
         ordersCache = orders;
         saveCache("orders_cache", orders);
@@ -449,6 +458,8 @@ function updateOrder(id) {
         billing_address: order.billing_address,
         subtotal: order.subtotal,
         status: order.status,
+        created_at: new Date(order.created_at).toLocaleString(),
+        updated_at: new Date(order.updated_at).toLocaleString(),
 
         delivery_needed: order.delivery_detail?.delivery_needed,
         delivery_status: order.delivery_detail?.status,
@@ -554,6 +565,24 @@ function deleteOrder(id) {
     });
 }
 
+function confirmOrder(id) {
+    openConfirmModal({
+        title: "Confirm Order",
+        message: "Are you sure to confirm this order? This will update the status and send a confirmation email to the customer.",
+        confirmText: "Confirm",
+        confirmColor: "bg-green-600",
+        onConfirm: async () => {
+            try {
+                await apiFetch(`/order/confirm?order_id=${id}`, { method: "POST" });
+                showToast("Order confirmed", "success");
+                refreshOrders(true);
+            } catch (err) {
+                handleError(err);
+            }
+        }
+    })
+}
+
 // ==============================
 // TABLE RENDER
 // ==============================
@@ -599,9 +628,10 @@ function renderTableFromSchema(data, type, schema, ctx = {}) {
                 return `<td class="p-2">${value ?? ""}</td>`;
             }).join("")}
 
-            <td class="p-2 space-x-3">
+            <td class="p-2 flex gap-2">
                 <button onclick='update${capitalize(type)}(${JSON.stringify(item.id)})' class="text-blue-600 hover:underline">Edit</button>
                 <button onclick='delete${capitalize(type)}(${JSON.stringify(item.id)})' class="text-red-600 hover:underline">Delete</button>
+                ${type === 'order' ? `<button onclick='confirm${capitalize(type)}(${JSON.stringify(item.id)})' class="text-green-600 hover:underline">Confirm</button>` : ""}
             </td>
         </tr>
     `).join("");
@@ -919,12 +949,12 @@ function openConfirmModal({
     document.getElementById("confirm-title").innerText = title;
     document.getElementById("confirm-message").innerText = message;
 
-    const btn = document.getElementById("confirm-action-btn");
+    const confirmBtn = document.getElementById("confirm-action-btn");
 
     confirmLabel = confirmText;
-    btn.innerText = confirmText;
+    confirmBtn.innerText = confirmText;
 
-    btn.className = `px-4 py-2 rounded text-white ${confirmColor}`;
+    confirmBtn.className = `px-4 py-2 rounded text-white ${confirmColor}`;
 
     confirmCallback = onConfirm;
 
@@ -935,6 +965,26 @@ function openConfirmModal({
     modal.onclick = (e) => {
         if (e.target.id === "confirm-modal") closeConfirmModal();
     };
+
+    confirmBtn.onclick = async () => {
+        if (!confirmCallback) return;
+
+        try {
+            confirmBtn.disabled = true;
+
+            const originalText = confirmLabel;
+            confirmBtn.innerText = "Processing...";
+
+            await confirmCallback();
+
+            closeConfirmModal();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = confirmLabel;
+        }
+    };
 }
 
 function closeConfirmModal() {
@@ -943,27 +993,6 @@ function closeConfirmModal() {
     modal.classList.remove("flex");
     confirmCallback = null;
 }
-
-// Confirm button handler
-document.getElementById("confirm-action-btn").onclick = async () => {
-    if (!confirmCallback) return;
-
-    try {
-        confirmBtn.disabled = true;
-
-        const originalText = confirmLabel;
-        confirmBtn.innerText = "Processing...";
-
-        await confirmCallback();
-
-        closeConfirmModal();
-    } catch (err) {
-        console.error(err);
-    } finally {
-        confirmBtn.disabled = false;
-        confirmBtn.innerText = confirmLabel;
-    }
-};
 
 // ==============================
 // ERROR
