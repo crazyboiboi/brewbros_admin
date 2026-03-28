@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brew Bros Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white shadow-md min-h-screen">
+            <div class="p-6 text-xl font-bold border-b">
+                <button class="nav-btn w-full text-left" data-section="dashboard">
+                    Admin
+                </button>
+            </div>
+            <nav class="p-4 space-y-2">
+                <button class="nav-btn w-full text-left p-2 rounded hover:bg-gray-100"
+                    data-section="beans">Beans</button>
+                <button class="nav-btn w-full text-left p-2 rounded hover:bg-gray-100"
+                    data-section="products">Products</button>
+                <button class="nav-btn w-full text-left p-2 rounded hover:bg-gray-100"
+                    data-section="orders">Orders</button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-semibold">Admin Dashboard</h1>
+
+                <!-- Backend Selector in the header -->
+                <div class="flex items-center gap-4">
+                    <label for="backend-selector" class="text-md font-medium">Server:</label>
+                    <select id="backend-selector" class="border px-3 py-2 rounded">
+                        <option value="http://localhost:3002">Localhost</option>
+                        <option value="https://brewbros-server.onrender.com">Production</option>
+                    </select>
+                    <button onclick="refreshBackend()" class="bg-green-600 text-white px-4 py-2 rounded">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Beans Section -->
+            <section id="beans" class="section hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-xl font-semibold">Beans</h2>
+                        <p id="beans-last-updated" class="text-md"></p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="refreshBeans()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded">Refresh</button>
+                        <button onclick="createBean()" class="bg-black text-white px-4 py-2 rounded">Add Bean</button>
+                    </div>
+                </div>
+                <div id="beans-table"></div>
+            </section>
+
+            <!-- Products Section -->
+            <section id="products" class="section hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-xl font-semibold">Products</h2>
+                        <p id="products-last-updated" class="text-md"></p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="refreshProducts()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded">Refresh</button>
+                        <button onclick="createProduct()" class="bg-black text-white px-4 py-2 rounded">Add
+                            Product</button>
+                    </div>
+                </div>
+                <div id="products-table"></div>
+            </section>
+
+            <!-- Orders Section -->
+            <section id="orders" class="section hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-xl font-semibold">Orders</h2>
+                        <p id="orders-last-updated" class="text-md"></p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="refreshOrders()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded">Refresh</button>
+                    </div>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <input id="order-id-input" type="text" placeholder="Enter Order ID"
+                        class="border p-2 rounded w-64" />
+                    <button onclick="fetchOrderById()" class="bg-black text-white px-4 py-2 rounded">Search</button>
+                </div>
+                <div id="orders-table"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50"></div>
+
+        <div class="relative bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+            <h2 id="confirm-title" class="text-lg font-semibold mb-2">
+                Confirm Action
+            </h2>
+
+            <p id="confirm-message" class="text-gray-600 mb-6">
+                Are you sure?
+            </p>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 rounded border">
+                    Cancel
+                </button>
+
+                <button id="confirm-action-btn" class="px-4 py-2 rounded text-white bg-red-600">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+
+</html>
