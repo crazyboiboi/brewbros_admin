@@ -96,9 +96,22 @@ const OrderSchema = [
 
 document.addEventListener("DOMContentLoaded", () => {
     initServer();
+    updateLoginStatus();
     initNavigation();
     createToastContainer();
     createModalRoot();
+
+    // Add login form event listener
+    const loginForm = document.getElementById("login-form");
+    if (loginForm) {
+        loginForm.addEventListener("submit", handleLogin);
+    }
+
+    // Check for authentication token
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+        showLoginModal();
+    }
 });
 
 document.addEventListener("click", (e) => {
@@ -116,20 +129,17 @@ document.addEventListener("click", (e) => {
 async function initServer() {
     const backendSelector = document.getElementById("backend-selector");
     let selectedServer = localStorage.getItem("selectedServer");
-
     if (selectedServer) {
-        backendSelector.value = selectedServer;
+        if (backendSelector.value !== selectedServer) {
+            backendSelector.value = selectedServer;
+        }
         SERVER = selectedServer;
-        API_BASE = `${SERVER}/v1/api`;
     } else {
-        selectedServer = backendSelector.value;
+        SERVER = backendSelector.value;
+        localStorage.setItem("selectedServer", SERVER);
     }
 
-    SERVER = selectedServer;
     API_BASE = `${SERVER}/v1/api`;
-
-    // Trigger refresh on initial load
-    await refreshBackend();
 
     // Listen for changes
     backendSelector.addEventListener("change", async () => {
@@ -137,21 +147,27 @@ async function initServer() {
         localStorage.setItem("selectedServer", selectedServer);
         SERVER = selectedServer;
         API_BASE = `${SERVER}/v1/api`;
-        await refreshBackend();
+        await clearCache(true);
     });
 }
 
-async function refreshBackend() {
+async function clearCache(clear = false) {
     console.log("Now using server:", SERVER);
 
-    localStorage.removeItem("beans_cache");
-    localStorage.removeItem("products_cache");
-    localStorage.removeItem("orders_cache");
+    if (clear) {
+        showLoginModal();
+        localStorage.removeItem("admin_token");
+        localStorage.removeItem("beans_cache");
+        localStorage.removeItem("products_cache");
+        localStorage.removeItem("orders_cache");
+    }
 
     beansCache = [];
     productsCache = [];
     ordersCache = [];
+}
 
+async function loadAll () {
     await loadBeans();
     await loadProducts();
     await loadOrders();
@@ -187,17 +203,107 @@ function initNavigation() {
 }
 
 // ==============================
+// LOGIN MODAL
+// ==============================
+
+function showLoginModal() {
+    const modal = document.getElementById("login-modal");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+
+    modal.onclick = (e) => {
+        if (e.target.id === "login-modal") closeLoginModal();
+    };
+
+    document.getElementById("username").focus();
+}
+
+function closeLoginModal() {
+    const modal = document.getElementById("login-modal");
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    document.getElementById("login-form").reset();
+    document.getElementById("login-error").classList.add("hidden");
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const errorDiv = document.getElementById("login-error");
+
+    try {
+        console.log(API_BASE);
+        const res = await fetch(`${API_BASE}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        if (!res.ok) {
+            let errMessage = "Something went wrong";
+
+            try {
+                const errData = await res.json();
+                errMessage = errData.error || errData.message || errMessage;
+            } catch {
+                // response not JSON, ignore
+            }
+
+            throw new Error(errMessage);
+        }
+
+        const data = await res.json();
+        localStorage.setItem("admin_token", data.token);
+
+        closeLoginModal();
+        updateLoginStatus();
+        loadAll();
+
+        showToast("Login successful", "success");
+    } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove("hidden");
+    }
+}
+
+// Add event listener for login form
+document.addEventListener("DOMContentLoaded", () => {
+    const loginForm = document.getElementById("login-form");
+    if (loginForm) {
+        loginForm.addEventListener("submit", handleLogin);
+    }
+});
+
+
+// ==============================
 // API CLIENT
 // ==============================
 
 async function apiFetch(path, options = {}) {
+    const token = localStorage.getItem("admin_token");
+    const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+    };
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_BASE}${path}`, {
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        },
+        headers,
         ...options
     });
+
+    if (res.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem("admin_token");
+        updateLoginStatus();
+        showLoginModal();
+        throw new Error("Authentication required");
+    }
 
     if (!res.ok) {
         const text = await res.text();
@@ -612,21 +718,21 @@ function renderTableFromSchema(data, type, schema, ctx = {}) {
     const rows = processedData.map(item => `
         <tr class="border-b">
             ${visibleColumns.map(col => {
-                let value = item[col.key];
+        let value = item[col.key];
 
-                if (col.colFormat) {
-                    value = col.colFormat(value, item, ctx);
-                }
-                // 2. Fallback to type-based formatting
-                else if (col.type === "boolean") {
-                    value = value ? "Yes" : "No";
-                }
-                else if (col.type === "decimal") {
-                    value = value != null ? Number(value).toFixed(2) : "";
-                }
+        if (col.colFormat) {
+            value = col.colFormat(value, item, ctx);
+        }
+        // 2. Fallback to type-based formatting
+        else if (col.type === "boolean") {
+            value = value ? "Yes" : "No";
+        }
+        else if (col.type === "decimal") {
+            value = value != null ? Number(value).toFixed(2) : "";
+        }
 
-                return `<td class="p-2">${value ?? ""}</td>`;
-            }).join("")}
+        return `<td class="p-2">${value ?? ""}</td>`;
+    }).join("")}
 
             <td class="p-2 flex gap-2">
                 <button onclick='update${capitalize(type)}(${JSON.stringify(item.id)})' class="text-blue-600 hover:underline">Edit</button>
@@ -641,8 +747,8 @@ function renderTableFromSchema(data, type, schema, ctx = {}) {
             <thead>
                 <tr class="bg-gray-50 border-b">
                     ${visibleColumns.map(col => {
-                        if (col.sortable) {
-                            return `
+        if (col.sortable) {
+            return `
                                 <th 
                                     class="sortable p-2 text-left cursor-pointer hover:bg-gray-100"
                                     data-key="${col.key}"
@@ -650,10 +756,10 @@ function renderTableFromSchema(data, type, schema, ctx = {}) {
                                     ${col.label} ${renderSortIcon(col.key)}
                                 </th>
                             `;
-                        }
+        }
 
-                        return `<th class="p-2 text-left">${col.label}</th>`;
-                    }).join("")}
+        return `<th class="p-2 text-left">${col.label}</th>`;
+    }).join("")}
                     <th class="p-2">Actions</th>
                 </tr>
             </thead>
@@ -995,6 +1101,21 @@ function closeConfirmModal() {
 }
 
 // ==============================
+// LOGIN STATUS
+// ==============================
+
+function updateLoginStatus() {
+    const indicator = document.getElementById("login-status");
+    const token = localStorage.getItem("admin_token");
+
+    if (token && indicator) {
+        indicator.classList.remove("hidden");
+    } else if (indicator) {
+        indicator.classList.add("hidden");
+    }
+}
+
+// ==============================
 // ERROR
 // ==============================
 
@@ -1025,7 +1146,11 @@ function loadCache(key) {
     if (!raw) return null;
 
     try {
-        return JSON.parse(raw);
+        const data = JSON.parse(raw);
+        if (Date.now() - new Date(data.updated_at) > 3600000) {
+            return null;
+        }
+        return data;
     } catch {
         return null;
     }
