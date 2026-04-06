@@ -594,14 +594,15 @@ function updateOrder(id) {
                     return;
                 }
 
-                console.log("Changed fields:", changed);
-                console.log("Order actions:", order_actions);
+                // console.log("Changed fields:", changed);
+                // console.log("Order actions:", order_actions);
 
                 await apiFetch(`/order?order_id=${id}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ order_actions }),
                 });
+
+                refreshOrders(true);
 
                 showToast("Order updated successfully!", "success");
             } catch (err) {
