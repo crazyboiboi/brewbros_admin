@@ -38,11 +38,13 @@ const ProductSchema = [
     { key: "name", group: "Product Detail", label: "Name", showColumn: true, },
     { key: "type", group: "Product Detail", showColumn: true, label: "Type", sortable: true },
     { key: "bean_id", group: "Product Detail", showColumn: true, label: "Bean", type: "select", sortable: true },
-    { key: "price", group: "Product Detail", label: "Price", showColumn: true, type: "decimal", step: "0.01", },
+    { key: "price", group: "Product Detail", label: "Ori Price", showColumn: true, type: "decimal", step: "0.01", },
+    { key: "discount", group: "Product Detail", label: "Discount (%)", type: "number" },
     { key: "stock", group: "Product Detail", label: "Stock", showColumn: true, type: "number" },
     { key: "description", group: "Product Detail", label: "Description" },
     { key: "image_url", group: "Product Detail", label: "Image URL" },
-    { key: "is_active", group: "Product Detail", showColumn: true, label: "Active", type: "boolean", sortable: true }
+    { key: "is_active", group: "Product Detail", showColumn: true, label: "Active", type: "boolean", sortable: true },
+    { key: "is_new", group: "Product Detail", label: "New", type: "boolean" },
 ];
 
 const OrderSchema = [
