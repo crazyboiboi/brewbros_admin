@@ -41,7 +41,7 @@ const ProductSchema = [
     { key: "price", group: "Product Detail", label: "Ori Price", showColumn: true, type: "decimal", step: "0.01", },
     { key: "discount", group: "Product Detail", label: "Discount (%)", type: "number" },
     { key: "stock", group: "Product Detail", label: "Stock", showColumn: true, type: "number" },
-    { key: "description", group: "Product Detail", label: "Description" },
+    { key: "description", group: "Product Detail", label: "Description", type: "textarea" },
     { key: "image_url", group: "Product Detail", label: "Image URL" },
     { key: "is_active", group: "Product Detail", showColumn: true, label: "Active", type: "boolean", sortable: true },
     { key: "is_new", group: "Product Detail", label: "New", type: "boolean" },
@@ -169,7 +169,7 @@ async function clearCache(clear = false) {
     ordersCache = [];
 }
 
-async function loadAll () {
+async function loadAll() {
     await loadBeans();
     await loadProducts();
     await loadOrders();
@@ -464,6 +464,7 @@ async function createProduct() {
         schema: buildProductSchema(),
         onSubmit: async data => {
             try {
+                data.is_new = Boolean(data.is_new);
                 data.is_active = Boolean(data.is_active);
                 await apiFetch("/products", { method: "POST", body: JSON.stringify(data) })
                 showToast("Product created", "success");
@@ -485,6 +486,7 @@ async function updateProduct(id) {
         initialData: product,
         onSubmit: async data => {
             try {
+                data.is_new = Boolean(data.is_new);
                 data.is_active = Boolean(data.is_active);
                 await apiFetch(`/products?product_id=${id}`, { method: "PUT", body: JSON.stringify(data) })
                 showToast("Product updated", "success");
@@ -915,6 +917,32 @@ function openFormModal({ title, schema, initialData = {}, extraContent = "", onS
                                 class="h-4 w-4 rounded mr-2 cursor-pointer"
                             />
                         </div>
+                    </div>
+                `;
+            }
+
+            if (f.type === "textarea") {
+                const rowCount = f.rows || 3;
+
+                if (f.readonly) {
+                    return `
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">${f.label}</label>
+                            <div class="w-full border rounded px-3 py-2 bg-gray-100 text-gray-700 whitespace-pre-wrap min-h-[4.5rem]">
+                                ${value || "-"}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div>
+                        <label class="block text-sm font-medium mb-1">${f.label}</label>
+                        <textarea 
+                            name="${f.key}" 
+                            rows="${rowCount}"
+                            class="w-full border rounded px-3 py-2 resize-y"
+                        >${value}</textarea>
                     </div>
                 `;
             }
